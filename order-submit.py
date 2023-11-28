@@ -1,42 +1,71 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-import hashlib
-import hmac
-import uvicorn
+import requests
+import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import sys
 
-app = FastAPI()
+squarespace_api = sys.argv[1]
+google_json_file = sys.argv[2]
+# Function to fetch orders from Squarespace
+def fetch_orders(api_key, start_datetime, end_datetime):
+    # Current time as the end datetime
+    # end_datetime = datetime.datetime.utcnow().isoformat() + 'Z'
 
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    # Your Squarespace webhook secret
-    webhook_secret = 'your_webhook_secret'
-
-    # Retrieve the body and signature from the request
-    body = await request.body()
-    signature = request.headers.get('Squarespace-Signature')
-
-    # Verify the Squarespace signature
-    if not is_valid_signature(body, signature, webhook_secret):
-        raise HTTPException(status_code=403, detail="Invalid signature")
-
-    # Process the webhook payload
-    payload = await request.json()
-    process_order(payload['data'])
-
-    return JSONResponse(content={'status': 'success'})
+    url = f"https://api.squarespace.com/1.0/commerce/orders?modifiedAfter={start_datetime}&modifiedBefore={end_datetime}"
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'User-Agent': 'YOUR_CUSTOM_APP_DESCRIPTION'
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()['result']  # List of orders
+    else:
+        # Handle errors
+        print(f"Error fetching orders: {response.status_code}")
+        return []
 
 
-def is_valid_signature(payload, signature, secret):
-    hmac_new = hmac.new(secret.encode(), payload, hashlib.sha256)
-    return hmac.compare_digest(hmac_new.hexdigest(), signature)
+# Function to update Google Sheets with the fetched orders
+def update_google_sheet(orders):
+    print(orders)
+    # Set up Google Sheets credentials and client
+    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name(google_json_file, scope)
+    client = gspread.authorize(creds)
+
+    # Open the spreadsheet and the specific sheet
+    sheet = client.open('TestCookiesData').sheet1
+
+    customer_id_counter = 1  # If you're generating Customer IDs
+    for order in orders:
+        # Extracting Customer Name
+        customer_name = f"{order['billingAddress']['firstName']} {order['billingAddress']['lastName']}"
+
+        # Generating a simple Customer ID (or use a more sophisticated method if preferred)
+        customer_id = f"CUST{customer_id_counter}"
+        customer_id_counter += 1
+
+        # Calculating Credits Earned (assuming grandTotal is a string of a float value)
+        credits_earned = float(order['grandTotal']['value']) * 100  # Convert dollars to cents
+
+        # Preparing the row data
+        order_data = [customer_id, customer_name, credits_earned, "", credits_earned]  # Leave Credits Spent blank for now
+
+        # Append the row to the sheet
+        sheet.append_row(order_data)
 
 
-def process_order(order_data):
-    print(order_data)
-    # Logic to process order data and update Google Sheets
-    # ...
+# Main function to run the scheduled job
+def main():
+    api_key = squarespace_api
+    # Define your time range for fetching orders
+    start_datetime = '2000-01-01T00:00:00Z'  # Adjust as needed
+    end_datetime = datetime.datetime.utcnow().isoformat() + 'Z'
+
+    orders = fetch_orders(api_key, start_datetime, end_datetime)
+    if orders:
+        update_google_sheet(orders)
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
