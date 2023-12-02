@@ -1,0 +1,35 @@
+<form id="creditQueryForm">
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="email" placeholder="Email">
+    <button type="submit">Check Credits</button>
+</form>
+<div id="result"></div>
+
+<script>
+    document.getElementById('creditQueryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const secret_key = ''
+        const linode_server = ''
+
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+
+        fetch(linode_server, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                secret_key: secret_key  // Include the secret key in the request
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('result').textContent = 'Credits: ' + data.credits;
+        })
+        .catch(error => console.error('Error:', error));
+    });
+</script>

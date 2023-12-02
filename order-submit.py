@@ -3,9 +3,18 @@ import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import sys
+import os
+import base64
+import json
 
-squarespace_api = sys.argv[1]
-google_json_file = sys.argv[2]
+# Decode the base64 string
+encoded_credentials = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
+decoded_credentials = base64.b64decode(encoded_credentials)
+# Get Squarespace key
+squarespace_api = os.environ.get('SQUARESPACE_API')
+
+google_sheet_name = os.environ.get('GOOGLE_SHEET_NAME')
+
 # Function to fetch orders from Squarespace
 def fetch_orders(api_key, start_datetime, end_datetime):
     # Current time as the end datetime
@@ -30,11 +39,11 @@ def update_google_sheet(orders):
     print(orders)
     # Set up Google Sheets credentials and client
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(google_json_file, scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(decoded_credentials, scope)
     client = gspread.authorize(creds)
 
     # Open the spreadsheet and the specific sheet
-    sheet = client.open('TestCookiesData').sheet1
+    sheet = client.open(google_sheet_name).sheet1
 
     customer_id_counter = 1  # If you're generating Customer IDs
     for order in orders:
@@ -49,7 +58,8 @@ def update_google_sheet(orders):
         credits_earned = float(order['grandTotal']['value']) * 100  # Convert dollars to cents
 
         # Preparing the row data
-        order_data = [customer_id, customer_name, credits_earned, "", credits_earned]  # Leave Credits Spent blank for now
+        order_data = [customer_id, customer_name, credits_earned, "",
+                      credits_earned]  # Leave Credits Spent blank for now
 
         # Append the row to the sheet
         sheet.append_row(order_data)

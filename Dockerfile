@@ -7,10 +7,6 @@ LABEL maintainer="collinp@collinpendleton.com"
 # Set working directory in the container
 WORKDIR /app
 
-# Copy the Python scripts into the container at /app
-COPY order-submit.py /app/
-COPY backend-query.py /app/
-
 # Install any needed packages specified in requirements.txt
 # Assuming you have a requirements.txt file for your Python dependencies
 COPY requirements.txt /app/
@@ -18,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install cron
 RUN apt-get update && apt-get install -y cron
+
+# Copy the Python scripts into the container at /app
+COPY order-submit.py /app/
+COPY backend-query.py /app/
 
 # Add crontab file in the cron directory
 RUN echo "*/10 * * * * python3 /app/order-submit.py >> /var/log/cron.log 2>&1" > /etc/cron.d/order-submit-cron

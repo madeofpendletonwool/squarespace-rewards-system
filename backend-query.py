@@ -1,6 +1,11 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+from google.oauth2.service_account import Credentials
 import gspread
+import os
+import base64
+import json
 from oauth2client.service_account import ServiceAccountCredentials
 
 app = FastAPI()
@@ -14,17 +19,33 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Decode the base64 string
+encoded_credentials = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
+decoded_credentials = base64.b64decode(encoded_credentials)
+
+# Load the credentials as a JSON object
+credentials_json = json.loads(decoded_credentials)
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "DL8ssxZ6EAWEGk")
+
 # Google Sheets setup
 scope = ['https://www.googleapis.com/auth/spreadsheets']
-creds = ServiceAccountCredentials.from_json_keyfile_name('path_to_your_credentials.json', scope)
+creds = Credentials.from_service_account_info(credentials_json)
 client = gspread.authorize(creds)
 sheet = client.open('Your Spreadsheet Name').sheet1
 
 @app.post("/get-credits")
 async def get_credits(request: Request):
     data = await request.json()
+
+    # Verify secret key
+    if data.get("secret_key") != SECRET_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     name = data.get("name")
     email = data.get("email")
+
+
 
     # Search for the user in the Google Sheet
     # Implement the logic to search the sheet and calculate the credits
