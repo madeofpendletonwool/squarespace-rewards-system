@@ -60,3 +60,59 @@ docker run -d --name squarespace-sheet-updater -p 80:80 \
 -e GOOGLE_SHEET_NAME="$GOOGLE_SHEET_NAME" \
 madeofpendletonwool/squarespace-sheet-updater:latest
 ```
+
+Make requests like this:
+
+```
+curl -X POST http://linode-ip:80/get-credits -H "Content-Type: application/json" -d '{"name": "Test Name", "email": "test@example.com", "secret_key": "your-secret-key"}'
+```
+
+
+Below is the code for the javascript form to pull credits from the linode server ensure you update the secret_key with the one input into the linode server and the linode server ip.
+
+```html
+<form id="creditQueryForm">
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="email" placeholder="Email">
+    <button type="submit">Check Credits</button>
+</form>
+<div id="result"></div>
+
+<script>
+    document.getElementById('creditQueryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const secret_key = 'your-secret-key';
+        const api_endpoint = 'https://your-linode-server:443/get-credits';  // Adjust with your actual API endpoint
+
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+
+        fetch(api_endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                secret_key: secret_key  // Include the secret key in the request
+            }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('result').textContent = 'Credits: ' + data.credits;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('result').textContent = 'Error: ' + error.message;
+        });
+    });
+</script>
+
+```

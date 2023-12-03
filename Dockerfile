@@ -20,7 +20,7 @@ COPY order-submit.py /app/
 COPY backend-query.py /app/
 
 # Add crontab file in the cron directory
-RUN echo "*/10 * * * * python3 /app/order-submit.py >> /var/log/cron.log 2>&1" > /etc/cron.d/order-submit-cron
+RUN echo "*/10 * * * * /usr/local/bin/python3 /app/order-submit.py >> /var/log/cron.log 2>&1" > /etc/cron.d/order-submit-cron
 
 # Give execution rights on the cron job
 RUN chmod 0644 /etc/cron.d/order-submit-cron
@@ -33,4 +33,4 @@ RUN touch /var/log/cron.log
 
 # Run the command on container startup
 # Start FastAPI application using Uvicorn
-CMD cron && uvicorn backend-query:app --host 0.0.0.0 --port 80
+CMD cron && uvicorn backend-query:app --host 0.0.0.0 --port 443

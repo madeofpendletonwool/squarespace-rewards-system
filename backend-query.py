@@ -19,6 +19,8 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+google_sheet_name = os.environ.get('GOOGLE_SHEET_NAME')
+
 # Decode the base64 string
 encoded_credentials = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
 decoded_credentials = base64.b64decode(encoded_credentials)
@@ -29,10 +31,12 @@ credentials_json = json.loads(decoded_credentials)
 SECRET_KEY = os.environ.get("SECRET_KEY", "DL8ssxZ6EAWEGk")
 
 # Google Sheets setup
-scope = ['https://www.googleapis.com/auth/spreadsheets']
-creds = Credentials.from_service_account_info(credentials_json)
+scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_json, scope)
 client = gspread.authorize(creds)
-sheet = client.open('Your Spreadsheet Name').sheet1
+
+# Open the spreadsheet and the specific sheet
+sheet = client.open(google_sheet_name).sheet1
 
 @app.post("/get-credits")
 async def get_credits(request: Request):
@@ -59,4 +63,4 @@ async def get_credits(request: Request):
 # Run the server (for development)
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=443)
