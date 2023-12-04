@@ -47,18 +47,26 @@ def update_google_sheet(orders):
     # Open the spreadsheet and the specific sheet
     sheet = client.open(google_sheet_name).sheet1
 
-    # Fetch all rows as a list of lists
+    # Open or create a separate sheet for processed order IDs
+    try:
+        processed_orders_sheet = client.open(google_sheet_name).worksheet("Processed Orders")
+    except gspread.exceptions.WorksheetNotFound:
+        processed_orders_sheet = client.open(google_sheet_name).add_worksheet(title="Processed Orders", rows="1000", cols="2")
+        processed_orders_sheet.update('A1:B1', [['Order ID', 'Processed On']])
+
+    # Fetch all rows as a list of lists from the main sheet
     all_rows = sheet.get_values()
-    if len(all_rows) > 1:
+    if len(all_rows) > 1:  # Check if there are more rows beyond the header
         header = all_rows[0]
         data_rows = all_rows[1:]
         existing_data = [dict(zip(header, row)) for row in data_rows]
-        existing_emails = {row['Customer Email']: row for row in existing_data if 'Customer Email' in row and row['Customer Email']}
-        processed_order_ids = {row['Order ID'] for row in existing_data if 'Order ID' in row and row['Order ID']}
+        existing_emails = {row['Customer Email']: row for row in existing_data if 'Customer Email' in row}
     else:
         existing_data = []
         existing_emails = {}
-        processed_order_ids = set()
+
+    # Fetch processed order IDs from the separate sheet
+    processed_order_ids = set(row[0] for row in processed_orders_sheet.get_all_values()[1:])  # Skip header row
 
     for order in orders:
         order_id = order['id']
@@ -71,15 +79,24 @@ def update_google_sheet(orders):
 
         if customer_email in existing_emails:
             # Customer exists, update their credits
-            existing_row = existing_emails[customer_email]
-            row_index = existing_data.index(existing_row) + 2  # +2 due to Google Sheets indexing
-            new_credits_earned = existing_row['Credits Earned'] + credits_earned
-            sheet.update(f'D{row_index}', new_credits_earned)  # Update Credits Earned in column C
-            sheet.update(f'F{row_index}', new_credits_earned)  # Update Net Credits in column E
+            row_index = existing_emails[customer_email]
+            existing_credits = sheet.cell(row_index, 4).value  # Assuming Credits Earned is in column D
+            existing_credits = float(existing_credits) if existing_credits else 0
+            new_credits_earned = existing_credits + credits_earned
+
+            # Update the Google Sheet with the new values
+            sheet.update(f'D{row_index}', new_credits_earned)  # Update Credits Earned in column D
+            sheet.update(f'F{row_index}', new_credits_earned)  # Update Net Credits in column F
         else:
             # New customer, add their information
-            order_data = [order_id, customer_email, customer_name, credits_earned, "", credits_earned]
-            sheet.append_row(order_data)
+            row_index = len(all_rows) + 2  # Calculate the new row index
+            order_data = [customer_email, customer_name, credits_earned, "", credits_earned]
+            sheet.insert_row(order_data, row_index)
+            existing_emails[customer_email] = row_index  # Update the existing_emails dictionary
+
+        # Record the processed order ID in the separate sheet
+        processed_orders_sheet.append_row([order_id, str(datetime.datetime.now())])
+        processed_order_ids.add(order_id)
 
 
 # Main function to run the scheduled job

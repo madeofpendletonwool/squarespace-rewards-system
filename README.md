@@ -23,7 +23,7 @@ export SQUARESPACE_API=''
 # Google Sheet Name
 export GOOGLE_SHEET_NAME=''
 # Domain Name for Squarespace
-export GOOGLE_SHEET_NAME=''
+export DOMAIN_NAME=''
 
 # Update and upgrade the server
 apt-get update -y && apt-get upgrade -y
@@ -56,7 +56,7 @@ docker pull madeofpendletonwool/squarespace-sheet-updater:latest
 
 # Run your Docker container
 # Make sure to replace 'your_docker_image' and set any necessary environment variables
-docker run -d --name squarespace-sheet-updater -p 443:443 \
+docker run -d --restart unless-stopped --name squarespace-sheet-updater -p 443:443 -p 80:80 \
 -e GOOGLE_CREDENTIALS_BASE64="$GOOGLE_CREDENTIALS_BASE64" \
 -e SECRET_KEY="$SECRET_KEY" \
 -e SQUARESPACE_API="$SQUARESPACE_API" \
