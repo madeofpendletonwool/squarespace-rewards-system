@@ -11,6 +11,7 @@ GOOGLE_CREDENTIALS_BASE64:
 SECRET_KEY: 
 SQUARESPACE_API: 
 GOOGLE_SHEET_NAME: 
+DOMAIN_NAME:
 
 ```#!/bin/bash
 # Google json key
@@ -20,6 +21,8 @@ export SECRET_KEY=''
 # Squarespace key to access order info
 export SQUARESPACE_API=''
 # Google Sheet Name
+export GOOGLE_SHEET_NAME=''
+# Domain Name for Squarespace
 export GOOGLE_SHEET_NAME=''
 
 # Update and upgrade the server
@@ -53,11 +56,12 @@ docker pull madeofpendletonwool/squarespace-sheet-updater:latest
 
 # Run your Docker container
 # Make sure to replace 'your_docker_image' and set any necessary environment variables
-docker run -d --name squarespace-sheet-updater -p 80:80 \
+docker run -d --name squarespace-sheet-updater -p 443:443 \
 -e GOOGLE_CREDENTIALS_BASE64="$GOOGLE_CREDENTIALS_BASE64" \
 -e SECRET_KEY="$SECRET_KEY" \
 -e SQUARESPACE_API="$SQUARESPACE_API" \
 -e GOOGLE_SHEET_NAME="$GOOGLE_SHEET_NAME" \
+-e DOMAIN_NAME="$DOMAIN_NAME" \
 madeofpendletonwool/squarespace-sheet-updater:latest
 ```
 

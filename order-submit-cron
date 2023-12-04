@@ -1,0 +1,1 @@
+*/10 * * * * python3 /app/order-submit.py >> /var/log/cron.log 2>&1

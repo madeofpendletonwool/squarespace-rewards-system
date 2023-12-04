@@ -47,11 +47,24 @@ def update_google_sheet(orders):
     # Open the spreadsheet and the specific sheet
     sheet = client.open(google_sheet_name).sheet1
 
-    # Fetch all existing data to check for duplicates and accumulate credits
-    existing_data = sheet.get_all_records()
-    existing_emails = {row['Customer Email']: row for row in existing_data}
+    # Fetch all rows as a list of lists
+    all_rows = sheet.get_values()
+    if len(all_rows) > 1:
+        header = all_rows[0]
+        data_rows = all_rows[1:]
+        existing_data = [dict(zip(header, row)) for row in data_rows]
+        existing_emails = {row['Customer Email']: row for row in existing_data if 'Customer Email' in row and row['Customer Email']}
+        processed_order_ids = {row['Order ID'] for row in existing_data if 'Order ID' in row and row['Order ID']}
+    else:
+        existing_data = []
+        existing_emails = {}
+        processed_order_ids = set()
 
     for order in orders:
+        order_id = order['id']
+        if order_id in processed_order_ids:
+            continue  # Skip this order if it's already been processed
+
         customer_email = order.get('customerEmail', '')
         customer_name = f"{order['billingAddress']['firstName']} {order['billingAddress']['lastName']}"
         credits_earned = float(order['grandTotal']['value']) * 100  # Convert dollars to cents
@@ -61,11 +74,11 @@ def update_google_sheet(orders):
             existing_row = existing_emails[customer_email]
             row_index = existing_data.index(existing_row) + 2  # +2 due to Google Sheets indexing
             new_credits_earned = existing_row['Credits Earned'] + credits_earned
-            sheet.update(f'C{row_index}', new_credits_earned)  # Update Credits Earned in column C
-            sheet.update(f'E{row_index}', new_credits_earned)  # Update Net Credits in column E
+            sheet.update(f'D{row_index}', new_credits_earned)  # Update Credits Earned in column C
+            sheet.update(f'F{row_index}', new_credits_earned)  # Update Net Credits in column E
         else:
             # New customer, add their information
-            order_data = [customer_email, customer_name, credits_earned, "", credits_earned]
+            order_data = [order_id, customer_email, customer_name, credits_earned, "", credits_earned]
             sheet.append_row(order_data)
 
 
