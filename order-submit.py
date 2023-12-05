@@ -68,6 +68,13 @@ def update_google_sheet(orders):
     # Fetch processed order IDs from the separate sheet
     processed_order_ids = set(row[0] for row in processed_orders_sheet.get_all_values()[1:])  # Skip header row
 
+    # Fetch all rows as a list of lists from the main sheet
+    all_rows = sheet.get_values()
+    header = all_rows[0] if all_rows else ['Customer Email', 'Customer Name', 'Credits Earned', 'Credits Spent', 'Net Credits']
+    existing_data = [dict(zip(header, row)) for row in all_rows[1:]] if len(all_rows) > 1 else []
+
+    customer_credit_data = {}
+
     for order in orders:
         order_id = order['id']
         if order_id in processed_order_ids:
@@ -77,27 +84,32 @@ def update_google_sheet(orders):
         customer_name = f"{order['billingAddress']['firstName']} {order['billingAddress']['lastName']}"
         credits_earned = float(order['grandTotal']['value']) * 100  # Convert dollars to cents
 
-        if customer_email in existing_emails:
-            # Customer exists, update their credits
-            row_index = existing_emails[customer_email]
-            existing_credits = sheet.cell(row_index, 4).value  # Assuming Credits Earned is in column D
-            existing_credits = float(existing_credits) if existing_credits else 0
-            new_credits_earned = existing_credits + credits_earned
-
-            # Update the Google Sheet with the new values
-            sheet.update(f'D{row_index}', new_credits_earned)  # Update Credits Earned in column D
-            sheet.update(f'F{row_index}', new_credits_earned)  # Update Net Credits in column F
+        if customer_email in customer_credit_data:
+            customer_credit_data[customer_email]['credits'] += credits_earned
         else:
-            # New customer, add their information
-            row_index = len(all_rows) + 2  # Calculate the new row index
-            order_data = [customer_email, customer_name, credits_earned, "", credits_earned]
-            sheet.insert_row(order_data, row_index)
-            existing_emails[customer_email] = row_index  # Update the existing_emails dictionary
+            customer_credit_data[customer_email] = {
+                'name': customer_name,
+                'credits': credits_earned
+            }
 
+        processed_order_ids.add(order_id)
         # Record the processed order ID in the separate sheet
         processed_orders_sheet.append_row([order_id, str(datetime.datetime.now())])
-        processed_order_ids.add(order_id)
 
+    # Check if there's data to update
+    if customer_credit_data:
+        # Clear the existing data rows starting from row 2
+        if sheet.row_count > 1:
+            sheet.delete_rows(2, sheet.row_count)
+
+        # Rebuild the sheet with updated data
+        for email, data in customer_credit_data.items():
+            row_data = [email, data['name'], data['credits'], "", data['credits']]
+            sheet.append_row(row_data)
+
+    # Restore header if it was cleared
+    if sheet.row_count == 0:
+        sheet.append_row(['Customer Email', 'Customer Name', 'Credits Earned', 'Credits Spent', 'Net Credits'])
 
 # Main function to run the scheduled job
 def main():
