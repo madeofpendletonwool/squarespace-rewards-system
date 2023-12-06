@@ -35,9 +35,6 @@ scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis
 creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_json, scope)
 client = gspread.authorize(creds)
 
-# Open the spreadsheet and the specific sheet
-sheet = client.open(google_sheet_name).sheet1
-
 @app.post("/get-credits")
 async def get_credits(request: Request):
     data = await request.json()
@@ -46,19 +43,30 @@ async def get_credits(request: Request):
     if data.get("secret_key") != SECRET_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    name = data.get("name")
     email = data.get("email")
 
+    # Access Google Sheets
+    try:
+        # Assuming you have set up credentials and client as a global variable
+        sheet = client.open(google_sheet_name).sheet1
 
+        # Find the row with the requested email
+        cell = sheet.find(email)
+        if cell:
+            # Fetch the row data
+            row = sheet.row_values(cell.row)
+            # Assuming credits are in the 3rd column (index 2)
+            credit_count = float(row[2]) if row[2] else 0
+        else:
+            # User not found
+            credit_count = 0
 
-    # Search for the user in the Google Sheet
-    # Implement the logic to search the sheet and calculate the credits
-    # ...
+    except Exception as e:
+        # Handle exceptions, e.g., if sheet not found
+        print(f"Error accessing Google Sheets: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    # Placeholder response
-    credits = 100  # Replace with actual logic to calculate credits
-
-    return {"credits": credits}
+    return {"credits": credit_count}
 
 # Run the server (for development)
 if __name__ == "__main__":
